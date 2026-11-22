@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slayt → Tweet Thread</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#000;--card:#16181c;--line:#2f3336;--text:#e7e9ea;--dim:#71767b;--blue:#1d9bf0;--green:#00ba7c;--pink:#f91880;--red:#f4212e}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:600px;margin:0 auto;min-height:100vh;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+header{position:sticky;top:0;z-index:5;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:19px;margin:0;font-weight:800}
+.panel{padding:16px;border-bottom:1px solid var(--line)}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:26px 16px;text-align:center;cursor:pointer;color:var(--dim);transition:.15s}
+.drop{position:relative}
+.fin{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;border:0;font-size:0}
+.drop.on,.drop:hover{border-color:var(--blue);color:var(--blue);background:rgba(29,155,240,.06)}
+.drop b{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
+.file{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;background:var(--card);border-radius:12px}
+.file span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file small{color:var(--dim)}
+details{margin-top:12px}
+summary{color:var(--blue);cursor:pointer;font-weight:600}
+textarea,input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;margin-top:8px}
+textarea{min-height:110px;resize:vertical}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--blue);border-color:transparent}
+.row{display:flex;gap:10px}.row>*{flex:1}
+label{display:block;color:var(--dim);font-size:13px;margin-top:12px}
+button{font:inherit;cursor:pointer;border:0}
+.go{width:100%;margin-top:16px;background:var(--text);color:#000;font-weight:700;font-size:16px;padding:13px;border-radius:999px}
+.go:disabled{opacity:.4;cursor:default}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px}
+.ghost:hover{background:rgba(255,255,255,.06)}
+.msg{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(244,33,46,.12);color:#ff7a82;display:none}
+.bar{height:4px;background:var(--line);border-radius:4px;margin-top:14px;overflow:hidden;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .3s}
+.status{color:var(--dim);font-size:13px;margin-top:8px;display:none}
+.tweet{display:flex;gap:12px;padding:12px 16px 4px;border-bottom:1px solid var(--line);position:relative}
+.tweet.link .rail{flex:1}
+.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1d9bf0,#7856ff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:none}
+.col{display:flex;flex-direction:column;align-items:center;flex:none}
+.rail{width:2px;background:var(--line);margin-top:4px;min-height:10px}
+.body{flex:1;min-width:0;padding-bottom:6px}
+.name{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.name b{font-weight:700}.name span{color:var(--dim)}
+.badge{width:17px;height:17px;fill:var(--blue)}
+.num{margin-left:auto;color:var(--dim);font-size:13px}
+.txt{white-space:pre-wrap;word-wrap:break-word;margin-top:2px;font-size:15.5px;outline:none;border-radius:6px}
+.txt:focus{background:rgba(29,155,240,.08)}
+.txt .h{color:var(--blue);font-weight:700}
+.acts{display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:13px;margin-top:8px;max-width:400px}
+.acts span,.acts button{display:flex;align-items:center;gap:5px;background:none;color:var(--dim);padding:6px 0}
+.acts button:hover{color:var(--blue)}
+.cnt{font-variant-numeric:tabular-nums}
+.cnt.over{color:var(--red);font-weight:700}
+.liked{color:var(--pink)!important}
+.top{display:flex;gap:8px;padding:12px 16px;position:sticky;top:49px;z-index:4;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);align-items:center}
+.top .sp{flex:1;color:var(--dim);font-size:13px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;padding:9px 18px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:.2s;z-index:20}
+.toast.on{opacity:1}
+.empty{padding:40px 16px;text-align:center;color:var(--dim)}
+svg{width:18px;height:18px;fill:currentColor}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>🧵 Slayt → Thread</h1><button class="ghost" id="resetBtn" style="display:none">Yeni</button></header>
+
+<div class="panel" id="input">
+  <div class="drop" id="drop">
+    <b>Ders slaytını yükle</b>
+    PDF veya PPTX · dokun ya da sürükle bırak
+    <input type="file" id="fileIn" class="fin">
+  </div>
+  <div class="file" id="fileBox" style="display:none"><span id="fileName"></span><small id="fileInfo"></small></div>
+
+  <details id="pasteBox">
+    <summary>Ya da metni yapıştır</summary>
+    <textarea id="paste" placeholder="Slayt metnini buraya yapıştır…"></textarea>
+  </details>
+
+  <div class="row">
+    <div><label>Ton</label>
+      <select id="tone">
+        <option>Samimi ve öğretici</option>
+        <option>Esprili</option>
+        <option>Ciddi / akademik</option>
+        <option>Sınav öncesi hızlı tekrar</option>
+      </select></div>
+    <div><label>Detay</label>
+      <select id="detail">
+        <option value="kisa">Kısa (öz)</option>
+        <option value="orta" selected>Orta</option>
+        <option value="detayli">Detaylı (not gibi)</option>
+      </select></div>
+  </div>
+  <div class="row">
+    <div><label>Hesap adın</label><input id="uname" placeholder="Adın" maxlength="30"></div>
+    <div><label>Kullanıcı adı</label><input id="uhandle" placeholder="kullanici" maxlength="20"></div>
+  </div>
+  <label>Erişim kodu (site sahibi koyduysa)</label><input id="acode" type="password" autocomplete="off" placeholder="Boş bırakılabilir">
+
+  <button class="go" id="goBtn" disabled>Thread'e çevir</button>
+  <div class="bar" id="bar"><i id="barI"></i></div>
+  <div class="status" id="status"></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div id="out" style="display:none">
+  <div class="top"><div class="sp" id="outInfo"></div><button class="ghost" id="copyAll">Hepsini kopyala</button></div>
+  <div id="thread"></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const BADGE='<svg class="badge" viewBox="0 0 24 24"><path d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91C2.88 9.33 2 10.57 2 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.33-2.19c1.4.45 2.91.2 3.92-.81s1.26-2.52.8-3.91c1.31-.67 2.2-1.91 2.2-3.34zm-11.71 4.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z"/></svg>';
+let pdfDoc=null, slides=[], fileTitle='', tweets=[], busy=false;
+try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}
+
+try{$('uname').value=localStorage.getItem('st_name')||'';$('uhandle').value=localStorage.getItem('st_handle')||''}catch(e){}
+['uname','uhandle'].forEach(i=>$(i).addEventListener('input',()=>{try{localStorage.setItem('st_name',$('uname').value);localStorage.setItem('st_handle',$('uhandle').value)}catch(e){}}));
+
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1600)}
+function showMsg(t){const m=$('msg');m.textContent=t;m.style.display=t?'block':'none'}
+function setStatus(t,p){const s=$('status');s.style.display=t?'block':'none';s.textContent=t||'';const b=$('bar');b.style.display=t?'block':'none';if(p!=null)$('barI').style.width=p+'%'}
+function refresh(){$('goBtn').disabled=busy||!(slides.length||$('paste').value.trim().length>20)}
+$('paste').addEventListener('input',refresh);
+
+/* ---------- dosya okuma ---------- */
+const drop=$('drop');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('on')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('on')}));
+drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f)loadFile(f)});
+$('fileIn').onchange=e=>{const f=e.target.files[0];if(f)loadFile(f)};
+
+async function loadFile(f){
+  showMsg('');slides=[];pdfDoc=null;
+  fileTitle=f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
+  $('fileBox').style.display='flex';$('fileName').textContent=f.name;$('fileInfo').textContent='okunuyor…';
+  try{
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(ext==='pdf')await readPdf(f);
+    else if(ext==='pptx')await readPptx(f);
+    else if(ext==='txt'||ext==='md'){const t=await f.text();slides=t.split(/\n{2,}/).filter(x=>x.trim()).map((x,i)=>({n:i+1,text:x.trim()}))}
+    else if(ext==='ppt')throw new Error('Eski .ppt formatı desteklenmiyor. PowerPoint\'te "Farklı kaydet → PDF" yapıp onu yükle.');
+    else throw new Error('Desteklenmeyen dosya. PDF, PPTX veya TXT yükle.');
+    if(!slides.length)throw new Error('Dosyadan içerik okunamadı.');
+    const chars=slides.reduce((a,s)=>a+s.text.length,0);
+    $('fileInfo').textContent=slides.length+' slayt · '+chars+' karakter';
+  }catch(e){
+    $('fileBox').style.display='none';showMsg(e.message||String(e));slides=[];
+  }
+  refresh();
+}
+
+async function readPdf(f){
+  const buf=await f.arrayBuffer();
+  pdfDoc=await pdfjsLib.getDocument({data:buf}).promise;
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    const pg=await pdfDoc.getPage(i);
+    const tc=await pg.getTextContent();
+    let out='',lastY=null;
+    for(const it of tc.items){
+      const y=it.transform[5];
+      if(lastY!==null&&Math.abs(y-lastY)>3)out+='\n';
+      out+=it.str+(it.hasEOL?'\n':' ');
+      lastY=y;
+    }
+    slides.push({n:i,text:out.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim()});
+  }
+}
+
+async function readPptx(f){
+  const zip=await JSZip.loadAsync(await f.arrayBuffer());
+  const names=Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a,b)=>parseInt(a.match(/(\d+)\.xml/)[1])-parseInt(b.match(/(\d+)\.xml/)[1]));
+  for(let i=0;i<names.length;i++){
+    const xml=await zip.files[names[i]].async('string');
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    const paras=[...doc.getElementsByTagNameNS('*','p')].map(p=>[...p.getElementsByTagNameNS('*','t')].map(t=>t.textContent).join('')).filter(s=>s.trim());
+    // konuşmacı notları
+    let notes='';
+    const nn='ppt/notesSlides/notesSlide'+names[i].match(/(\d+)\.xml/)[1]+'.xml';
+    if(zip.files[nn]){
+      const nd=new DOMParser().parseFromString(await zip.files[nn].async('string'),'application/xml');
+      notes=[...nd.getElementsByTagNameNS('*','p')].map(p=>[...p.getElementsByTagNameNS('*','t')].map(t=>t.textContent).join('')).filter(s=>s.trim()&&!/^\d+$/.test(s.trim())).join('\n');
+    }
+    slides.push({n:i+1,text:paras.join('\n')+(notes?'\n[Not: '+notes+']':'')});
+  }
+}
+
+async function pageImages(from,to){
+  const blobs=[];
+  for(let i=from;i<=to;i++){
+    const pg=await pdfDoc.getPage(i);
+    const vp=pg.getViewport({scale:1.1});
+    const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+    await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    blobs.push(await new Promise(r=>c.toBlob(r,'image/jpeg',.6)));
+  }
+  return blobs;
+}
+
+/* ---------- üretim ---------- */
+function parseJSON(t){
+  t=t.replace(/```(?:json)?/g,'');
+  const a=t.indexOf('['),b=t.lastIndexOf(']');
+  if(a<0||b<0)throw new Error('Yanıt çözümlenemedi');
+  return JSON.parse(t.slice(a,b+1));
+}
+
+function buildPrompt(chunkText,idx,total,imgMode,pagesLabel){
+  const detail={kisa:'Her slayt için 1 tweet, çok öz.',orta:'Her slayt için 1–2 tweet.',detayli:'Her slayt için gerekirse 2–4 tweet; ders notu gibi eksiksiz.'}[$('detail').value];
+  return `Bir tıp/üniversite ders slaytını Twitter (X) thread'ine çeviriyorsun. Başlık başlık ilerle.
+
+KURALLAR:
+- Her slayt/başlık için bir veya birkaç tweet. Her başlığın ilk tweet'i "baslik" alanında o başlığı taşısın (kısa, 1 emoji'li).
+- ${detail}
+- Bilgi doğru ve kaybolmadan aktarılsın: tanımlar, sayılar, isimler, karşılaştırmalar, "X ile Y farkı" gibi sınavlık noktalar korunsun. Slaytta olmayan bilgi uydurma.
+- Her "tweet" alanı EN FAZLA 270 karakter. Gerekirse aynı başlığı 2 tweet'e böl (ikinci tweet'te aynı "baslik"i yaz).
+- Dil: Türkçe (terimlerin orijinalini gerekirse parantezle bırak). Ton: ${$('tone').value}.
+- Doğal tweet dili: kısa cümleler, uygunsa madde işareti (•) ve 1–2 emoji. Hashtag kullanma.
+- Boş, sadece başlık/teşekkür/kaynakça slaytlarını atla.
+${total>1?`- Bu, slaytın ${idx+1}/${total}. parçası; giriş veya kapanış tweet'i yazma.`:''}
+
+ÇIKTI: Sadece JSON dizisi, başka hiçbir şey yazma:
+[{"baslik":"🧬 Başlık","tweet":"Tweet metni"}]
+
+${imgMode?`Slayt görselleri ekte (${pagesLabel}). Görsellerdeki yazıları, şemaları ve tabloları da oku.`:`SLAYT METNİ:\n${chunkText}`}`;
+}
+
+function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)})}
+async function callAI(prompt,opts){
+  const images=opts.images?await Promise.all(opts.images.map(blobToB64)):[];
+  const r=await fetch('/api/generate',{method:'POST',headers:{'content-type':'application/json','x-access-code':$('acode').value.trim()},body:JSON.stringify({prompt,images})});
+  if(r.status===401){const e=new Error('auth');e.code='auth';throw e}
+  if(r.status===429){const e=new Error('rate');e.code='rate_limited';throw e}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||('Sunucu hatası ('+r.status+')'));
+  return {text:j.text||''};
+}
+try{$('acode').value=localStorage.getItem('st_code')||''}catch(e){}
+$('acode').addEventListener('input',()=>{try{localStorage.setItem('st_code',$('acode').value)}catch(e){}});
+
+$('goBtn').onclick=async()=>{
+  if(busy)return;
+  showMsg('');
+  busy=true;refresh();tweets=[];
+  try{
+    let src=slides;
+    if(!src.length){
+      src=$('paste').value.trim().split(/\n{2,}/).filter(x=>x.trim()).map((x,i)=>({n:i+1,text:x.trim()}));
+      fileTitle=fileTitle||'Ders notları';
+    }
+    // metin yoksa (taranmış PDF) görsel modu
+    const totalChars=src.reduce((a,s)=>a+s.text.length,0);
+    let imgMode=false;
+    if(pdfDoc&&totalChars/Math.max(1,src.length)<40){
+      imgMode=true;
+    }
+    // parçala
+    const chunks=[];
+    if(imgMode){for(let i=1;i<=pdfDoc.numPages;i+=5)chunks.push({from:i,to:Math.min(i+4,pdfDoc.numPages)})}
+    else{
+      let cur=[],len=0;
+      for(const s of src){
+        const t=`--- Slayt ${s.n} ---\n${s.text}`;
+        if(len+t.length>7000&&cur.length){chunks.push({text:cur.join('\n\n')});cur=[];len=0}
+        cur.push(t);len+=t.length;
+      }
+      if(cur.length)chunks.push({text:cur.join('\n\n')});
+    }
+    $('out').style.display='block';renderThread(true);
+    for(let i=0;i<chunks.length;i++){
+      setStatus(`Parça ${i+1}/${chunks.length} işleniyor…`,(i/chunks.length)*100);
+      const c=chunks[i];
+      let opts={modelTier:'default',cache:false};
+      let label='';
+      if(imgMode){opts.images=await pageImages(c.from,c.to);label=`slayt ${c.from}–${c.to}`}
+      const res=await callAI(buildPrompt(c.text,i,chunks.length,imgMode,label),opts);
+      let arr;
+      try{arr=parseJSON(res.text)}catch(e){
+        const r2=await callAI(buildPrompt(c.text,i,chunks.length,imgMode,label)+'\n\nÖNEMLİ: yalnızca geçerli JSON dizisi döndür.',opts);
+        arr=parseJSON(r2.text);
+      }
+      for(const t of arr){if(t&&t.tweet)tweets.push({baslik:String(t.baslik||'').trim(),tweet:String(t.tweet).trim()})}
+      renderThread(true);
+    }
+    setStatus('',100);
+    renderThread(false);
+    $('input').style.display='none';$('resetBtn').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){
+    const code=e&&e.code;
+    showMsg(code==='auth'?'Erişim kodu yanlış veya eksik.':code==='rate_limited'?'Çok hızlı istek gönderildi. Biraz bekleyip tekrar dene.':(e.message||String(e)));
+    setStatus('');
+    if(tweets.length){renderThread(false);$('input').style.display='';}
+  }
+  busy=false;refresh();
+};
+
+$('resetBtn').onclick=()=>{$('input').style.display='';$('out').style.display='none';$('resetBtn').style.display='none';tweets=[];showMsg('');setStatus('')};
+
+/* ---------- thread çizimi ---------- */
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function rnd(seed,min,max){const x=Math.sin(seed*9301+49297)*233280;return Math.floor(min+(x-Math.floor(x))*(max-min))}
+
+function allTweets(){
+  const name=$('uname').value.trim()||fileTitle||'Ders';
+  const list=[];
+  list.push({intro:true,text:`🧵 ${fileTitle||'Ders notları'}\n\nBaşlık başlık, tweet tweet özet. Kaydet, sınavda lazım olacak 👇`});
+  tweets.forEach(t=>list.push(t));
+  if(tweets.length)list.push({outro:true,text:'Thread bu kadar 🎓\n\nİşine yaradıysa kaydet, çalışma arkadaşınla paylaş 🔖'});
+  return list;
+}
+
+function renderThread(partial){
+  const box=$('thread');box.innerHTML='';
+  const list=allTweets();
+  const N=list.length;
+  const name=$('uname').value.trim()||'Ben';
+  const handle=($('uhandle').value.trim()||name.toLowerCase().replace(/[^a-z0-9_]/g,'')||'ders').replace(/^@/,'');
+  $('outInfo').textContent=partial?'Thread hazırlanıyor…':`${N} tweet`;
+  $('copyAll').style.display=partial?'none':'';
+  list.forEach((t,i)=>{
+    const el=document.createElement('div');
+    el.className='tweet'+(i<N-1?' link':'');
+    const text=t.text||t.tweet;
+    const body=(t.baslik&&!t.intro&&!t.outro)?`<span class="h">${esc(t.baslik)}</span>\n${esc(text)}`:esc(text);
+    const likes=rnd(i+3,12,980),rts=rnd(i+7,2,140),views=rnd(i+11,1,48);
+    el.innerHTML=`
+      <div class="col"><div class="av">${esc(name[0].toUpperCase())}</div>${i<N-1?'<div class="rail"></div>':''}</div>
+      <div class="body">
+        <div class="name"><b>${esc(name)}</b>${BADGE}<span>@${esc(handle)} · ${i+1}/${N}</span></div>
+        <div class="txt" contenteditable="${partial?'false':'plaintext-only'}" spellcheck="false">${body}</div>
+        <div class="acts">
+          <span class="cnt"></span>
+          <span>🔁 ${rts}</span>
+          <button class="like">♡ <i>${likes}</i></button>
+          <span>📊 ${views}B</span>
+          <button class="cp">Kopyala</button>
+        </div>
+      </div>`;
+    const txt=el.querySelector('.txt'),cnt=el.querySelector('.cnt');
+    const plain=()=>txt.innerText.replace(/\n{3,}/g,'\n\n').trim();
+    const upd=()=>{const n=plain().length;cnt.textContent=n+'/280';cnt.classList.toggle('over',n>280)};
+    upd();
+    txt.addEventListener('input',()=>{upd();syncFromDom()});
+    el.querySelector('.cp').onclick=()=>copy(plain());
+    const lk=el.querySelector('.like');let on=false;
+    lk.onclick=()=>{on=!on;lk.classList.toggle('liked',on);lk.innerHTML=(on?'♥ ':'♡ ')+'<i>'+(likes+(on?1:0))+'</i>'};
+    box.appendChild(el);
+  });
+  if(partial)box.lastChild&&box.lastChild.scrollIntoView({block:'nearest'});
+}
+
+function syncFromDom(){
+  // düzenlemeleri tweets dizisine geri yaz (ilk ve son tweet intro/outro)
+  const els=[...document.querySelectorAll('#thread .txt')];
+  const base=allTweets();
+  els.forEach((e,i)=>{
+    const t=base[i];if(!t||t.intro||t.outro)return;
+    let v=e.innerText;
+    if(t.baslik&&v.startsWith(t.baslik))v=v.slice(t.baslik.length);
+    tweets[i-1].tweet=v.trim();
+  });
+}
+
+function threadText(){
+  const els=[...document.querySelectorAll('#thread .txt')];
+  return els.map((e,i)=>`${i+1}/${els.length}\n${e.innerText.trim()}`).join('\n\n');
+}
+$('copyAll').onclick=()=>copy(threadText());
+
+async function copy(t){
+  try{await navigator.clipboard.writeText(t);toast('Kopyalandı ✓');return}catch(e){}
+  try{
+    const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();
+    toast(ok?'Kopyalandı ✓':'Kopyalanamadı');
+  }catch(e){toast('Kopyalanamadı')}
+}
+refresh();
+</script>
+</body>
+</html>
